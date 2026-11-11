@@ -1,88 +1,119 @@
 import { pick, randomInt } from "./random";
 import type { Avatar } from "./types";
 
+// Wardrobe for the dancers. Each Avatar field is an index into one of these.
+
 export const SKIN_TONES = [
-  "#FFE3CC",
-  "#F9C9A0",
-  "#E8A87C",
-  "#C68642",
-  "#8D5524",
+  "#F6D7C3",
+  "#EBC09F",
+  "#D59C74",
+  "#A86F48",
+  "#7A4A2C",
+  "#4E2E1C",
 ];
 
 export const HAIR_COLORS = [
-  "#2B2B33",
-  "#6B3E26",
-  "#F4C542",
-  "#FF7EB6",
-  "#5AA9FF",
-  "#9B6BFF",
-  "#3DDC97",
-  "#FF6B4A",
+  "#17151B",
+  "#3A2418",
+  "#6E4A33",
+  "#C9A06A",
+  "#E9DCC6",
+  "#C7C9D3",
+  "#F06FA8",
+  "#5B7CFF",
+  "#B33A2E",
 ];
 
-export const OUTFIT_COLORS = [
-  "#FF6B6B",
-  "#FFB84D",
-  "#4ECDC4",
-  "#5A8DEE",
-  "#A06CD5",
-  "#FF7EB6",
-  "#43C463",
-  "#3A3F6B",
-];
-
-export const PANTS_COLORS = [
-  "#2D3047",
-  "#3B5BA5",
-  "#6B4F3A",
-  "#F1F1F1",
-  "#7A3E9D",
+/** Shared fashion palette for tops, bottoms and shoes. */
+export const FASHION_COLORS = [
+  "#141418",
+  "#F3EFE6",
+  "#8F98A3",
+  "#C9B8FF",
+  "#FF3D97",
+  "#2E6BFF",
+  "#C8FF3D",
+  "#FF7A1A",
+  "#D92D3F",
+  "#7E9E7A",
+  "#C29A6B",
+  "#3A4B70",
+  "#6A2FD9",
+  "#12B5AE",
 ];
 
 export const HAIR_STYLES = [
-  "Ngắn",
-  "Dựng ngược",
-  "Tóc bob",
-  "Đuôi ngựa",
-  "Búi hai bên",
+  "Two-block",
+  "Fade ngắn",
+  "Dài thẳng",
+  "Đuôi ngựa cao",
+  "Bob",
+  "Búi đôi",
   "Xoăn",
-  "Tóc dài",
+  "Wolf cut",
 ];
 
+export const TOPS = [
+  "Hoodie oversize",
+  "Crop top + jacket",
+  "Tank top",
+  "Bomber",
+  "Áo phông graphic",
+  "Áo kim sa",
+  "Track jacket",
+];
+
+export const BOTTOMS = [
+  "Quần cargo",
+  "Skinny jeans",
+  "Váy xếp ly",
+  "Quần track",
+  "Quần biker",
+  "Quần ống rộng",
+];
+
+export const SHOES = ["Sneaker chunky", "High-top", "Boots", "Đế platform"];
+
 export const ACCESSORIES = [
-  "Không có",
-  "Kính tròn",
-  "Tai nghe",
-  "Nơ xinh",
-  "Mũ lưỡi trai",
-  "Kẹp ngôi sao",
+  "Không",
+  "Kính râm",
+  "Mũ lưỡi trai ngược",
+  "Mũ len",
+  "Tai nghe đeo cổ",
+  "Dây chuyền",
+  "Mũ bucket",
+  "Khuyên tai",
 ];
 
 export const AVATAR_LIMITS: Record<keyof Avatar, number> = {
   skin: SKIN_TONES.length,
-  hairStyle: HAIR_STYLES.length,
+  hair: HAIR_STYLES.length,
   hairColor: HAIR_COLORS.length,
-  outfit: OUTFIT_COLORS.length,
-  pants: PANTS_COLORS.length,
+  top: TOPS.length,
+  topColor: FASHION_COLORS.length,
+  bottom: BOTTOMS.length,
+  bottomColor: FASHION_COLORS.length,
+  shoes: SHOES.length,
+  shoeColor: FASHION_COLORS.length,
   accessory: ACCESSORIES.length,
 };
 
 export function randomAvatar(rng = Math.random): Avatar {
-  return {
-    skin: randomInt(SKIN_TONES.length, rng),
-    hairStyle: randomInt(HAIR_STYLES.length, rng),
-    hairColor: randomInt(HAIR_COLORS.length, rng),
-    outfit: randomInt(OUTFIT_COLORS.length, rng),
-    pants: randomInt(PANTS_COLORS.length, rng),
-    accessory: randomInt(ACCESSORIES.length, rng),
-  };
+  const avatar = {} as Avatar;
+  for (const key of Object.keys(AVATAR_LIMITS) as (keyof Avatar)[]) {
+    avatar[key] = randomInt(AVATAR_LIMITS[key], rng);
+  }
+  // Keep outfits readable: top and bottom in different colours.
+  if (avatar.topColor === avatar.bottomColor) {
+    avatar.bottomColor = (avatar.bottomColor + 5) % FASHION_COLORS.length;
+  }
+  return avatar;
 }
 
 export function sanitizeAvatar(input: unknown): Avatar {
-  const fallback = randomAvatar();
-  if (!input || typeof input !== "object") return fallback;
+  const out = randomAvatar();
+  if (!input || typeof input !== "object") return out;
   const raw = input as Record<string, unknown>;
-  const out = { ...fallback };
   for (const key of Object.keys(AVATAR_LIMITS) as (keyof Avatar)[]) {
     const value = raw[key];
     if (
@@ -103,28 +134,19 @@ export function sanitizeName(input: unknown) {
   return name.slice(0, 16) || randomFunName();
 }
 
-const FUN_NAMES = [
-  "Mèo Mướp",
-  "Bé Bơ",
-  "Sóc Nâu",
-  "Gấu Mập",
-  "Thỏ Ngọc",
-  "Cún Con",
-  "Vịt Vàng",
-  "Cá Heo",
-];
+const FUN_NAMES = ["Dancer", "Groover", "Rookie", "B-Kid", "Mover", "Stepper"];
 
 export function randomFunName() {
   return `${pick(FUN_NAMES)} ${randomInt(90) + 10}`;
 }
 
 export const BOT_NAMES = [
-  "DJ Panda",
-  "Robo Rex",
-  "Kiki",
-  "Bubbles",
+  "Nova",
+  "Kai",
+  "Mira",
+  "Zed",
   "Luna",
-  "Ziggy",
-  "Momo",
-  "Captain Beat",
+  "Rex",
+  "Jade",
+  "Neo",
 ];

@@ -49,15 +49,17 @@ export const PROMPT_MODES: Record<
 > = {
   meaning: {
     label: "Nhìn nghĩa → gõ từ",
-    description: "Hiện nghĩa tiếng Việt + hình, gõ từ tiếng Anh",
+    description: "Hiện nghĩa tiếng Việt, gõ đúng từ tiếng Anh",
   },
   listen: {
     label: "Nghe → gõ từ",
-    description: "Máy đọc từ tiếng Anh, học sinh gõ lại (chính tả)",
+    description:
+      "Máy đọc từ tiếng Anh, người chơi nghe và gõ lại (luyện chính tả)",
   },
   copy: {
     label: "Nhìn từ → gõ lại",
-    description: "Hiện sẵn từ tiếng Anh, luyện gõ cho bé mới học",
+    description:
+      "Hiện sẵn từ tiếng Anh để khởi động, luyện gõ nhanh và làm quen từ mới",
   },
 };
 

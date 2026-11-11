@@ -23,7 +23,6 @@ import {
 import { SONGS, getSong } from "./songs";
 import {
   RATINGS,
-  type Avatar,
   type ClientMessage,
   type Difficulty,
   type GameStart,
@@ -65,7 +64,7 @@ const emptyStats = (): PlayerStats => ({
 });
 
 export const defaultConfig = (): RoomConfig => ({
-  wordSetId: "animals",
+  wordSetId: "university",
   customWords: [],
   songId: SONGS[0].id,
   difficulty: "normal",
@@ -292,12 +291,12 @@ export class Room {
     if (bots.length >= MAX_BOTS || this.players.size >= MAX_PLAYERS) return;
     const used = new Set(bots.map((b) => b.name));
     const name =
-      BOT_NAMES.find((n) => !used.has(`🤖 ${n}`)) ?? `Bot ${bots.length + 1}`;
+      BOT_NAMES.find((n) => !used.has(n)) ?? `Bot ${bots.length + 1}`;
     const id = `bot-${randomId(6)}`;
     this.players.set(id, {
       id,
-      name: `🤖 ${name}`,
-      avatar: randomAvatar() as Avatar,
+      name,
+      avatar: randomAvatar(),
       isBot: true,
       spectator: false,
       skill: 0.55 + Math.random() * 0.4,

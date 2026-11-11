@@ -6,35 +6,31 @@ import { LogOut, RotateCcw, Volume2 } from "lucide-react";
 import Confetti from "react-confetti";
 import { useWindowSize } from "react-use";
 
-import { Button } from "@/components/ui/button";
 import { music } from "@/lib/dance/audio";
+import { GROOVE_STYLES } from "@/lib/dance/choreo";
+import { hashString } from "@/lib/dance/random";
 import { getSong } from "@/lib/dance/songs";
 import { speak } from "@/lib/dance/speech";
 import { useDance } from "@/lib/dance/store";
-import type { PlayerPublic } from "@/lib/dance/types";
 import { displayWord } from "@/lib/dance/words";
 import { cn } from "@/lib/utils";
 
 import { Dancer, DancerHead } from "./dancer";
+import { StageBackdrop } from "./stage";
 
 const PODIUM = [
-  {
-    place: 1,
-    medal: "🥈",
-    height: "h-20",
-    color: "from-slate-300 to-slate-400",
-  },
+  { place: 1, label: "2ND", height: "h-16", glow: "from-white/25 to-white/5" },
   {
     place: 0,
-    medal: "🥇",
-    height: "h-28",
-    color: "from-yellow-300 to-amber-400",
+    label: "1ST",
+    height: "h-24",
+    glow: "from-[#ff2d95]/50 to-[#9b4dff]/10",
   },
   {
     place: 2,
-    medal: "🥉",
-    height: "h-14",
-    color: "from-orange-300 to-orange-500",
+    label: "3RD",
+    height: "h-10",
+    glow: "from-[#19e3ff]/35 to-white/5",
   },
 ];
 
@@ -48,6 +44,7 @@ export function Results() {
 
   const game = room.game;
   const song = getSong(game?.songId ?? room.config.songId);
+  const beatSec = 60 / song.bpm;
   const total = game?.words.length ?? 0;
   const ranked = room.players
     .filter((p) => game?.participants.includes(p.id))
@@ -64,65 +61,86 @@ export function Results() {
     music.sfx("fanfare");
   }, []);
 
-  const podiumPlayer = (index: number): PlayerPublic | undefined =>
-    ranked[index];
-
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-800 via-purple-700 to-fuchsia-600 p-3 text-white sm:p-6">
+    <div className="club-bg min-h-[100dvh] p-3 sm:p-6">
       {myRank === 0 && (
         <Confetti
           width={width}
           height={height}
           recycle={false}
-          numberOfPieces={400}
+          numberOfPieces={350}
           tweenDuration={8000}
+          colors={["#ff2d95", "#19e3ff", "#c8ff3d", "#ffffff", "#9b4dff"]}
         />
       )}
-      <div className="mx-auto flex max-w-5xl flex-col gap-5">
+      <div className="mx-auto flex max-w-6xl flex-col gap-5">
         <header className="text-center">
-          <p className="text-sm font-bold uppercase tracking-widest text-white/70">
-            {song.emoji} {song.name} · kết quả
-          </p>
-          <h1 className="text-4xl font-black drop-shadow sm:text-5xl">
-            {myRank === 0
-              ? "Bạn là ngôi sao sàn nhảy! 🌟"
-              : me
-                ? `Bạn hạng ${myRank + 1}!`
-                : "Kết quả"}
+          <p className="label">{song.name} · Final ranking</p>
+          <h1 className="font-display mt-1 text-6xl leading-none tracking-wider sm:text-8xl">
+            {myRank === 0 ? (
+              <span className="text-gradient">Champion</span>
+            ) : me ? (
+              <>
+                Rank <span className="text-gradient">#{myRank + 1}</span>
+              </>
+            ) : (
+              "Results"
+            )}
           </h1>
         </header>
 
-        {/* Podium */}
-        <div className="flex items-end justify-center gap-2 sm:gap-6">
-          {PODIUM.map(({ place, medal, height: h, color }) => {
-            const player = podiumPlayer(place);
+        {/* Podium on a club stage */}
+        <div
+          className="club-stage relative flex h-[420px] items-end justify-center gap-3 overflow-hidden rounded-2xl border border-white/10 px-3 sm:gap-8"
+          style={
+            {
+              "--light-a": song.colors[0],
+              "--light-b": song.colors[1],
+            } as React.CSSProperties
+          }
+        >
+          <StageBackdrop beatSec={beatSec} />
+          {PODIUM.map(({ place, label, height: h, glow }) => {
+            const player = ranked[place];
             if (!player) return <div key={place} className="w-24 sm:w-36" />;
             return (
               <div
                 key={place}
-                className="flex w-24 flex-col items-center sm:w-36"
+                className="relative z-[1] flex w-24 flex-col items-center sm:w-36"
               >
-                <Dancer
-                  avatar={player.avatar}
-                  beatSec={60 / song.bpm}
-                  move={place === 0 ? "cheer-loop" : "idle"}
-                  expression="joy"
-                  className={place === 0 ? "w-24 sm:w-32" : "w-20 sm:w-28"}
-                />
-                <div className="mt-1 max-w-full truncate text-sm font-black">
+                <div className="max-w-full truncate text-sm font-bold">
                   {player.name}
                 </div>
-                <div className="text-xs font-bold text-yellow-200">
-                  {player.score.toLocaleString("vi-VN")} điểm
+                <div className="font-display text-xl tracking-wider text-white/80">
+                  {player.score.toLocaleString("vi-VN")}
                 </div>
+                <Dancer
+                  avatar={player.avatar}
+                  beatSec={beatSec}
+                  grooveStyle={hashString(player.id) % GROOVE_STYLES}
+                  action={
+                    place === 0
+                      ? { move: "victory", key: "win", loop: true }
+                      : null
+                  }
+                  expression="joy"
+                  className={cn(
+                    "-mb-1",
+                    place === 0
+                      ? "w-[96px] sm:w-[124px]"
+                      : "w-[80px] sm:w-[104px]"
+                  )}
+                />
                 <div
                   className={cn(
-                    "mt-1 flex w-full items-start justify-center rounded-t-2xl bg-gradient-to-b pt-2 text-3xl shadow-lg",
+                    "glass flex w-full items-start justify-center rounded-t-xl bg-gradient-to-b pt-1",
                     h,
-                    color
+                    glow
                   )}
                 >
-                  {medal}
+                  <span className="font-display text-2xl tracking-widest">
+                    {label}
+                  </span>
                 </div>
               </div>
             );
@@ -130,18 +148,18 @@ export function Results() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <section className="overflow-hidden rounded-3xl bg-white text-slate-700 shadow-xl">
+          <section className="glass min-w-0 overflow-hidden rounded-2xl">
             <table className="w-full text-sm">
-              <thead className="bg-purple-50 text-xs uppercase text-purple-700">
-                <tr>
-                  <th className="px-3 py-2 text-left">#</th>
-                  <th className="px-3 py-2 text-left">Người chơi</th>
-                  <th className="px-3 py-2 text-right">Điểm</th>
-                  <th className="px-3 py-2 text-right">Đúng</th>
-                  <th className="hidden px-3 py-2 text-right sm:table-cell">
+              <thead className="text-left text-[11px] uppercase tracking-widest text-white/45">
+                <tr className="border-b border-white/10">
+                  <th className="px-3 py-2.5">#</th>
+                  <th className="px-3 py-2.5">Vũ công</th>
+                  <th className="px-3 py-2.5 text-right">Điểm</th>
+                  <th className="px-3 py-2.5 text-right">Đúng</th>
+                  <th className="hidden px-3 py-2.5 text-right sm:table-cell">
                     Perfect
                   </th>
-                  <th className="hidden px-3 py-2 text-right sm:table-cell">
+                  <th className="hidden px-3 py-2.5 text-right sm:table-cell">
                     Combo
                   </th>
                 </tr>
@@ -151,27 +169,42 @@ export function Results() {
                   <tr
                     key={p.id}
                     className={cn(
-                      "border-t border-slate-100",
-                      p.id === meId && "bg-yellow-50 font-bold"
+                      "border-b border-white/5",
+                      p.id === meId && "bg-[rgba(255,45,149,0.12)]"
                     )}
                   >
-                    <td className="px-3 py-1.5 font-black">{i + 1}</td>
+                    <td
+                      className={cn(
+                        "font-display px-3 py-1.5 text-xl",
+                        i < 3 ? "text-gradient" : "text-white/50"
+                      )}
+                    >
+                      {i + 1}
+                    </td>
                     <td className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
-                        <DancerHead avatar={p.avatar} className="h-7 w-7" />
-                        <span className="truncate">{p.name}</span>
+                        <DancerHead
+                          avatar={p.avatar}
+                          className="h-8 w-8 rounded-full bg-white/5"
+                        />
+                        <span className="truncate font-semibold">{p.name}</span>
+                        {p.isBot && (
+                          <span className="rounded bg-white/10 px-1 text-[9px] tracking-wider text-white/60">
+                            BOT
+                          </span>
+                        )}
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 text-right font-black tabular-nums">
+                    <td className="font-display px-3 py-1.5 text-right text-xl tabular-nums">
                       {p.score.toLocaleString("vi-VN")}
                     </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">
+                    <td className="px-3 py-1.5 text-right tabular-nums text-white/80">
                       {p.correct}/{total}
                     </td>
-                    <td className="hidden px-3 py-1.5 text-right tabular-nums sm:table-cell">
+                    <td className="hidden px-3 py-1.5 text-right tabular-nums text-white/80 sm:table-cell">
                       {p.perfect}
                     </td>
-                    <td className="hidden px-3 py-1.5 text-right tabular-nums sm:table-cell">
+                    <td className="hidden px-3 py-1.5 text-right tabular-nums text-white/80 sm:table-cell">
                       {p.maxCombo}
                     </td>
                   </tr>
@@ -180,37 +213,36 @@ export function Results() {
             </table>
           </section>
 
-          <section className="rounded-3xl bg-white p-4 text-slate-700 shadow-xl">
-            <h2 className="mb-2 text-lg font-black">📚 Từ cần ôn lại</h2>
+          <section className="glass min-w-0 rounded-2xl p-4">
+            <h2 className="mb-3 text-lg font-extrabold">Từ cần ôn lại</h2>
             {history.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-white/55">
                 Bạn đã xem bài này — không có từ nào của riêng bạn.
               </p>
             ) : uniqueReview.length === 0 ? (
-              <p className="text-sm font-bold text-emerald-600">
-                Tuyệt vời! Bạn gõ đúng tất cả các từ. 🎉
+              <p className="text-sm font-semibold text-[#c8ff3d]">
+                Không sai từ nào. Quá đỉnh!
               </p>
             ) : (
               <ul className="space-y-1.5">
                 {uniqueReview.map((h) => (
                   <li
                     key={h.word.en}
-                    className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-1.5 text-sm"
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm"
                   >
-                    <span className="text-xl">{h.word.emoji}</span>
-                    <span className="font-black text-slate-800">
+                    <span className="font-bold text-white">
                       {displayWord(h.word)}
                     </span>
-                    <span className="text-slate-500">= {h.word.vi}</span>
+                    <span className="text-white/55">= {h.word.vi}</span>
                     {h.typed && (
-                      <span className="text-xs text-rose-500 line-through">
+                      <span className="text-xs text-rose-300 line-through">
                         {h.typed}
                       </span>
                     )}
                     <button
                       type="button"
                       onClick={() => speak(displayWord(h.word))}
-                      className="ml-auto rounded-lg p-1 text-sky-500 hover:bg-sky-100"
+                      className="ml-auto rounded-lg p-1 text-[#19e3ff] hover:bg-white/10"
                       title="Nghe phát âm"
                     >
                       <Volume2 className="h-4 w-4" />
@@ -224,21 +256,21 @@ export function Results() {
 
         <div className="flex flex-wrap justify-center gap-3">
           {isHost ? (
-            <Button
-              variant="secondary"
-              size="lg"
+            <button
+              type="button"
+              className="btn-neon"
               onClick={() => send({ type: "lobby" })}
             >
-              <RotateCcw className="mr-2 h-5 w-5" /> Chơi bài tiếp theo
-            </Button>
+              <RotateCcw className="h-4 w-4" /> Bài tiếp theo
+            </button>
           ) : (
-            <div className="rounded-2xl bg-white/15 px-4 py-3 text-sm font-bold">
-              ⏳ Chờ chủ phòng mở bài tiếp theo…
+            <div className="glass rounded-xl px-4 py-3 text-sm text-white/70">
+              Chờ chủ phòng mở bài tiếp theo…
             </div>
           )}
-          <Button variant="dangerOutline" size="lg" onClick={() => leave()}>
-            <LogOut className="mr-2 h-5 w-5" /> Rời phòng
-          </Button>
+          <button type="button" className="btn-ghost" onClick={() => leave()}>
+            <LogOut className="h-4 w-4" /> Rời phòng
+          </button>
         </div>
       </div>
     </div>

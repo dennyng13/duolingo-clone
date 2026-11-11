@@ -2,21 +2,16 @@
 
 import { useState } from "react";
 
-import { Bot, Check, Copy, Eye, LogOut, Play, Shirt } from "lucide-react";
+import { Bot, Check, Copy, Eye, LogOut, Play, Shirt, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { music } from "@/lib/dance/audio";
+import { savePrefs } from "@/lib/dance/prefs";
 import { MAX_BOTS } from "@/lib/dance/room";
 import { DIFFICULTIES, PROMPT_MODES, ROUND_OPTIONS } from "@/lib/dance/rules";
 import { SONGS, getSong } from "@/lib/dance/songs";
 import { useDance } from "@/lib/dance/store";
 import type {
+  Avatar,
   Difficulty,
   PromptMode,
   RoomConfig,
@@ -31,15 +26,15 @@ import {
   parseCustomWords,
   wordSetLabel,
 } from "@/lib/dance/words";
-import { savePrefs } from "@/lib/dance/prefs";
 import { cn } from "@/lib/utils";
 
 import { AvatarEditor } from "./avatar-editor";
+import { DancerShowcase } from "./showcase";
 import { Stage } from "./stage";
 
 const CUSTOM_PLACEHOLDER = `Mỗi dòng một từ, ví dụ:
-apple = quả táo = 🍎
-happy = vui vẻ
+negotiate = đàm phán
+sustainable = bền vững
 grey/gray = màu xám`;
 
 function Segmented<T extends string | number>({
@@ -62,12 +57,8 @@ function Segmented<T extends string | number>({
           disabled={disabled}
           title={o.hint}
           onClick={() => onChange(o.value)}
-          className={cn(
-            "rounded-xl border-2 border-b-4 px-3 py-1.5 text-sm font-bold transition-colors disabled:cursor-not-allowed",
-            value === o.value
-              ? "border-purple-500 bg-purple-500 text-white"
-              : "border-slate-200 bg-white text-slate-600 enabled:hover:bg-slate-50"
-          )}
+          className="chip"
+          data-on={value === o.value}
         >
           {o.label}
         </button>
@@ -85,9 +76,7 @@ function Field({
 }) {
   return (
     <div>
-      <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+      <p className="label mb-2">{label}</p>
       {children}
     </div>
   );
@@ -103,25 +92,38 @@ function Settings({ room, isHost }: { room: RoomSnapshot; isHost: boolean }) {
   const update = (patch: Partial<RoomConfig>) =>
     send({ type: "config", config: patch });
   const disabled = !isHost;
+  const advanced = WORD_SETS.filter((s) => s.level === "advanced");
+  const basic = WORD_SETS.filter((s) => s.level === "basic");
 
   return (
-    <div className="space-y-4">
-      <Field label="Chủ đề từ vựng">
+    <div className="space-y-5">
+      <Field label="Bộ từ vựng">
         <select
           value={config.wordSetId}
           disabled={disabled}
           onChange={(e) => update({ wordSetId: e.target.value })}
-          className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 font-bold text-slate-700 outline-none focus:border-purple-400 disabled:bg-slate-50"
+          className="field font-semibold disabled:opacity-70"
         >
-          {WORD_SETS.map((set) => (
-            <option key={set.id} value={set.id}>
-              {set.emoji} {set.name} ({set.words.length} từ)
+          <optgroup label="Sinh viên · trung cấp">
+            {advanced.map((set) => (
+              <option key={set.id} value={set.id}>
+                {set.name} ({set.words.length} từ)
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Cơ bản · khởi động">
+            {basic.map((set) => (
+              <option key={set.id} value={set.id}>
+                {set.name} ({set.words.length} từ)
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Khác">
+            <option value={ALL_WORDS_ID}>{wordSetLabel(ALL_WORDS_ID)}</option>
+            <option value={CUSTOM_WORDS_ID}>
+              {wordSetLabel(CUSTOM_WORDS_ID)}
             </option>
-          ))}
-          <option value={ALL_WORDS_ID}>{wordSetLabel(ALL_WORDS_ID)}</option>
-          <option value={CUSTOM_WORDS_ID}>
-            {wordSetLabel(CUSTOM_WORDS_ID)}
-          </option>
+          </optgroup>
         </select>
         {config.wordSetId === CUSTOM_WORDS_ID &&
           (isHost ? (
@@ -132,43 +134,42 @@ function Settings({ room, isHost }: { room: RoomSnapshot; isHost: boolean }) {
                 onBlur={() => update({ customWords: parsed })}
                 rows={6}
                 placeholder={CUSTOM_PLACEHOLDER}
-                className="w-full rounded-xl border-2 border-slate-200 px-3 py-2 font-mono text-sm text-slate-700 outline-none focus:border-purple-400"
+                className="field font-mono text-sm"
               />
-              <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+              <div className="mt-1 flex items-center justify-between text-xs text-white/50">
                 <span>
                   {parsed.length} từ hợp lệ · đã lưu {config.customWords.length}
                 </span>
                 <button
                   type="button"
                   onClick={() => update({ customWords: parsed })}
-                  className="font-bold text-purple-600 hover:underline"
+                  className="font-bold text-[var(--neon-cyan)] hover:underline"
                 >
                   Lưu danh sách
                 </button>
               </div>
             </div>
           ) : (
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-white/50">
               Danh sách tự nhập: {config.customWords.length} từ
             </p>
           ))}
         {config.wordSetId === CUSTOM_WORDS_ID &&
           config.customWords.length === 0 && (
-            <p className="mt-1 text-xs font-semibold text-amber-600">
-              Chưa có từ nào — sẽ dùng chủ đề Động vật.
+            <p className="mt-1 text-xs font-semibold text-amber-300">
+              Chưa có từ nào — sẽ dùng bộ “{WORD_SETS[0].name}”.
             </p>
           )}
-        <p className="mt-1 truncate text-xs text-slate-400">
-          Ví dụ:{" "}
+        <p className="mt-1.5 truncate text-xs text-white/40">
           {getWordPool(config)
             .slice(0, 6)
             .map((w) => w.en)
-            .join(", ")}
+            .join(" · ")}
           …
         </p>
       </Field>
 
-      <Field label="Bài nhạc">
+      <Field label="Track">
         <div className="grid grid-cols-2 gap-2">
           {SONGS.map((song) => (
             <button
@@ -177,16 +178,16 @@ function Settings({ room, isHost }: { room: RoomSnapshot; isHost: boolean }) {
               disabled={disabled}
               onClick={() => update({ songId: song.id })}
               className={cn(
-                "rounded-2xl border-2 border-b-4 p-2 text-left transition-colors disabled:cursor-not-allowed",
+                "rounded-xl border p-2.5 text-left transition-colors disabled:cursor-default",
                 config.songId === song.id
-                  ? "border-purple-500 bg-purple-50"
-                  : "border-slate-200 bg-white enabled:hover:bg-slate-50"
+                  ? "border-transparent bg-gradient-to-br from-[#ff2d95]/30 to-[#19e3ff]/20 ring-1 ring-[#ff2d95]"
+                  : "border-white/10 bg-white/[0.03] enabled:hover:border-white/30"
               )}
             >
-              <div className="text-sm font-black text-slate-700">
-                {song.emoji} {song.name}
+              <div className="font-display text-lg leading-none tracking-wider">
+                {song.name}
               </div>
-              <div className="text-xs text-slate-500">{song.vibe}</div>
+              <div className="mt-1 text-[11px] text-white/55">{song.vibe}</div>
             </button>
           ))}
         </div>
@@ -203,7 +204,7 @@ function Settings({ room, isHost }: { room: RoomSnapshot; isHost: boolean }) {
             hint: DIFFICULTIES[d].description,
           }))}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs text-white/45">
           {DIFFICULTIES[config.difficulty].description}
         </p>
       </Field>
@@ -219,7 +220,7 @@ function Settings({ room, isHost }: { room: RoomSnapshot; isHost: boolean }) {
             hint: PROMPT_MODES[m].description,
           }))}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs text-white/45">
           {PROMPT_MODES[config.mode].description}
         </p>
       </Field>
@@ -232,6 +233,66 @@ function Settings({ room, isHost }: { room: RoomSnapshot; isHost: boolean }) {
           options={ROUND_OPTIONS.map((r) => ({ value: r, label: String(r) }))}
         />
       </Field>
+    </div>
+  );
+}
+
+function WardrobeModal({
+  name,
+  avatar,
+  onClose,
+  onSave,
+}: {
+  name: string;
+  avatar: Avatar;
+  onClose: () => void;
+  onSave: (name: string, avatar: Avatar) => void;
+}) {
+  const [draftName, setDraftName] = useState(name);
+  const [draft, setDraft] = useState(avatar);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="glass grid max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-[#0d0b14]/95 md:grid-cols-[1fr_1.2fr]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DancerShowcase
+          avatar={draft}
+          className="h-[300px] md:h-full md:min-h-[460px]"
+        />
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex items-center justify-between">
+            <p className="font-display text-3xl tracking-widest">Wardrobe</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1 text-white/60 hover:bg-white/10"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <label>
+            <span className="label mb-2 block">Nghệ danh</span>
+            <input
+              value={draftName}
+              maxLength={16}
+              onChange={(e) => setDraftName(e.target.value)}
+              className="field font-bold"
+            />
+          </label>
+          <AvatarEditor avatar={draft} onChange={setDraft} />
+          <button
+            type="button"
+            className="btn-neon mt-auto"
+            onClick={() => onSave(draftName.trim() || name, draft)}
+          >
+            Lưu outfit
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -267,61 +328,61 @@ export function Lobby() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-700 via-purple-600 to-fuchsia-500 p-3 sm:p-5">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <header className="flex flex-wrap items-center gap-3 rounded-3xl bg-white/15 p-3 text-white backdrop-blur">
+    <div className="club-bg min-h-[100dvh] p-3 sm:p-5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <header className="glass flex flex-wrap items-center gap-4 rounded-2xl px-4 py-3">
           {mode === "online" ? (
-            <div className="flex flex-wrap items-center gap-3">
+            <>
               <div>
-                <p className="text-xs font-bold uppercase opacity-80">
-                  Mã phòng
-                </p>
-                <p className="text-4xl font-black tracking-[0.25em]">
+                <p className="label">Mã phòng</p>
+                <p className="font-display text-gradient text-5xl leading-none tracking-[0.25em]">
                   {room.code}
                 </p>
               </div>
               <div className="min-w-0 text-sm">
-                <p className="font-semibold opacity-90">
-                  Học sinh mở link hoặc nhập mã ở trang Lingo Dance:
+                <p className="text-white/60">
+                  Người chơi mở link hoặc nhập mã ở trang Lingo Dance
                 </p>
                 <button
                   type="button"
                   onClick={copy}
-                  className="mt-0.5 flex max-w-full items-center gap-1 truncate rounded-lg bg-white/20 px-2 py-1 font-mono text-xs hover:bg-white/30"
+                  className="mt-1 flex max-w-full items-center gap-1.5 truncate rounded-lg bg-white/[0.06] px-2 py-1 font-mono text-xs text-white/80 hover:bg-white/10"
                 >
                   {copied ? (
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-3.5 w-3.5 text-[var(--neon-lime)]" />
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
                   <span className="truncate">{joinUrl}</span>
                 </button>
               </div>
-            </div>
+            </>
           ) : (
             <div>
-              <p className="text-xs font-bold uppercase opacity-80">Chế độ</p>
-              <p className="text-2xl font-black">Luyện tập cùng bot 🤖</p>
+              <p className="label">Chế độ</p>
+              <p className="font-display text-4xl leading-none tracking-widest">
+                Solo practice
+              </p>
             </div>
           )}
           <div className="ml-auto flex gap-2">
-            <Button
-              variant="default"
-              size="sm"
+            <button
+              type="button"
+              className="btn-ghost"
               onClick={() => setEditing(true)}
             >
-              <Shirt className="mr-1 h-4 w-4" /> Nhân vật
-            </Button>
-            <Button variant="dangerOutline" size="sm" onClick={() => leave()}>
-              <LogOut className="mr-1 h-4 w-4" /> Rời phòng
-            </Button>
+              <Shirt className="h-4 w-4" /> Outfit
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => leave()}>
+              <LogOut className="h-4 w-4" /> Rời phòng
+            </button>
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-          <div className="flex flex-col gap-3">
+        <div className="grid gap-4 lg:grid-cols-[1fr_390px]">
+          <div className="flex min-w-0 flex-col gap-3">
             <Stage
-              className="min-h-[340px] rounded-3xl border-4 border-white/30 shadow-2xl lg:min-h-[460px]"
+              className="min-h-[420px] rounded-2xl border border-white/10 lg:min-h-[560px]"
               players={dancers}
               meId={meId}
               hostId={room.hostId}
@@ -333,108 +394,89 @@ export function Lobby() {
                   : undefined
               }
             >
-              <div className="absolute left-3 top-3 rounded-full bg-black/30 px-3 py-1 text-xs font-bold text-white">
-                {dancers.length} người nhảy · {room.players.length} trong phòng
+              <div className="absolute left-4 top-6 z-10 flex items-center gap-2">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--neon-lime)]" />
+                <span className="font-display text-lg tracking-widest">
+                  Backstage
+                </span>
+                <span className="text-xs text-white/60">
+                  · {dancers.length} vũ công
+                </span>
               </div>
             </Stage>
 
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/15 p-3 text-sm text-white">
+            <div className="glass flex flex-wrap items-center gap-3 rounded-xl px-4 py-3 text-sm">
               <label className="flex cursor-pointer items-center gap-2 font-semibold">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-yellow-300"
+                  className="h-4 w-4 accent-[#ff2d95]"
                   checked={me?.spectator ?? false}
                   onChange={(e) =>
                     send({ type: "spectate", value: e.target.checked })
                   }
                 />
-                <Eye className="h-4 w-4" /> Chỉ xem (giáo viên chiếu lên màn
-                hình lớn)
+                <Eye className="h-4 w-4 text-white/60" /> Chỉ xem — giáo viên
+                chiếu lên màn hình lớn
               </label>
               {watchers.length > 0 && (
-                <span className="ml-auto text-xs opacity-80">
-                  👀 Đang xem: {watchers.map((w) => w.name).join(", ")}
+                <span className="ml-auto text-xs text-white/50">
+                  Đang xem: {watchers.map((w) => w.name).join(", ")}
                 </span>
               )}
             </div>
           </div>
 
-          <aside className="flex flex-col gap-4 rounded-3xl border-2 border-b-8 border-purple-200 bg-white p-4 shadow-xl">
+          <aside className="glass flex min-w-0 flex-col gap-5 rounded-2xl p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-700">
-                Cài đặt bài nhảy
-              </h2>
-              {!isHost && (
-                <span className="text-xs font-bold text-slate-400">
-                  Chủ phòng chọn
-                </span>
-              )}
+              <h2 className="font-display text-3xl tracking-widest">Setlist</h2>
+              {!isHost && <span className="label">Chủ phòng chọn</span>}
             </div>
             <Settings room={room} isHost={isHost} />
 
             {isHost && (
-              <Button
-                variant="default"
-                size="sm"
+              <button
+                type="button"
+                className="btn-ghost"
                 disabled={bots >= MAX_BOTS}
                 onClick={() => send({ type: "add-bot" })}
               >
-                <Bot className="mr-1 h-4 w-4" /> Thêm bot ({bots}/{MAX_BOTS})
-              </Button>
+                <Bot className="h-4 w-4" /> Thêm bot ({bots}/{MAX_BOTS})
+              </button>
             )}
 
             {isHost ? (
-              <Button
-                variant="secondary"
-                size="lg"
-                className="h-14 text-lg"
+              <button
+                type="button"
+                className="btn-neon h-14 text-base"
                 disabled={dancers.length === 0}
                 onClick={() => {
                   music.unlock();
                   send({ type: "start" });
                 }}
               >
-                <Play className="mr-2 h-5 w-5" /> Bắt đầu nhảy!
-              </Button>
+                <Play className="h-5 w-5" /> Bắt đầu biểu diễn
+              </button>
             ) : (
-              <div className="rounded-2xl bg-purple-50 p-3 text-center text-sm font-bold text-purple-700">
-                ⏳ Chờ chủ phòng bắt đầu… Hãy sẵn sàng tay trên bàn phím!
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-center text-sm text-white/70">
+                Chờ chủ phòng bắt đầu… đặt tay lên bàn phím nhé.
               </div>
             )}
           </aside>
         </div>
       </div>
 
-      <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Đổi nhân vật</DialogTitle>
-          </DialogHeader>
-          {me && (
-            <>
-              <input
-                defaultValue={me.name}
-                maxLength={16}
-                onBlur={(e) => {
-                  const name = e.target.value.trim();
-                  if (name && name !== me.name) {
-                    savePrefs({ name });
-                    send({ type: "profile", name, avatar: me.avatar });
-                  }
-                }}
-                className="w-full rounded-xl border-2 border-slate-200 px-3 py-2 text-lg font-bold text-slate-700 outline-none focus:border-purple-400"
-              />
-              <AvatarEditor
-                avatar={me.avatar}
-                onChange={(avatar) => {
-                  savePrefs({ avatar });
-                  send({ type: "profile", name: me.name, avatar });
-                }}
-              />
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {editing && me && (
+        <WardrobeModal
+          name={me.name}
+          avatar={me.avatar}
+          onClose={() => setEditing(false)}
+          onSave={(name, avatar) => {
+            savePrefs({ name, avatar });
+            send({ type: "profile", name, avatar });
+            setEditing(false);
+          }}
+        />
+      )}
     </div>
   );
 }

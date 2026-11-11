@@ -6,8 +6,10 @@ import dynamic from "next/dynamic";
 const DanceApp = dynamic(() => import("./dance-app"), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-indigo-700 via-purple-600 to-fuchsia-500 text-3xl font-black text-white">
-      🪩 Lingo Dance…
+    <div className="club-bg flex min-h-[100dvh] items-center justify-center">
+      <p className="font-display text-gradient animate-pulse text-6xl tracking-widest">
+        Lingo Dance
+      </p>
     </div>
   ),
 });

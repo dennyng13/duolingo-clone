@@ -2,36 +2,24 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+import { GROOVE_STYLES, pickMove } from "@/lib/dance/choreo";
+import { hashString } from "@/lib/dance/random";
 import { RATING_LABEL } from "@/lib/dance/rules";
 import type { LiveJudge } from "@/lib/dance/store";
 import type { PlayerPublic } from "@/lib/dance/types";
 import { cn } from "@/lib/utils";
 
-import {
-  Dancer,
-  DancerHead,
-  EXPRESSION_BY_RATING,
-  pickMove,
-  type MoveName,
-} from "./dancer";
+import { Dancer, DancerHead, EXPRESSION_BY_RATING } from "./dancer";
 
-const SPARKLES = [
-  [8, 12],
-  [18, 30],
-  [30, 8],
-  [70, 10],
-  [82, 26],
-  [92, 14],
-  [55, 22],
-  [40, 34],
-];
+const EQ_BARS = 32;
 
 type StageProps = {
   players: PlayerPublic[];
   meId: string | null;
   hostId?: string | null;
   beatSec: number;
-  phaseSec?: number;
+  /** Song clock in seconds (keeps every dancer on the music). */
+  clock?: () => number;
   judges?: Record<string, LiveJudge>;
   showScores?: boolean;
   /** Shrink dancers to the stage height (the stage must have a fixed height). */
@@ -47,11 +35,11 @@ type StageProps = {
 };
 
 function sizeFor(count: number) {
-  if (count <= 3) return 150;
-  if (count <= 6) return 120;
-  if (count <= 10) return 96;
-  if (count <= 18) return 78;
-  return 62;
+  if (count <= 3) return 168;
+  if (count <= 6) return 136;
+  if (count <= 10) return 100;
+  if (count <= 18) return 72;
+  return 58;
 }
 
 /** Puts the local player in the middle of the line-up (others keep join order). */
@@ -69,17 +57,47 @@ function lineUp(
   return [...others.slice(0, half), me, ...others.slice(half)];
 }
 
+export function StageBackdrop({ beatSec }: { beatSec: number }) {
+  return (
+    <>
+      <div className="club-wall" />
+      <div
+        className="club-eq"
+        style={{ "--beat": `${beatSec}s` } as CSSProperties}
+      >
+        {Array.from({ length: EQ_BARS }, (_, i) => (
+          <span
+            key={i}
+            style={{ animationDelay: `${-((i * 7) % 11) * beatSec * 0.09}s` }}
+          />
+        ))}
+      </div>
+      <div className="club-beam a" />
+      <div className="club-beam b" />
+      <div className="club-beam c" />
+      <div className="club-beam d" />
+      <div className="club-truss">
+        {Array.from({ length: 12 }, (_, i) => (
+          <i key={i} />
+        ))}
+      </div>
+      <div className="club-floor" />
+      <div className="club-haze" />
+    </>
+  );
+}
+
 export function Stage({
   players,
   meId,
   hostId,
   beatSec,
-  phaseSec = 0,
+  clock,
   judges = {},
   showScores = false,
   fit = false,
   maxShown = Infinity,
-  colors = ["#ff5fb7", "#4fd1ff"],
+  colors = ["#ff2d95", "#19e3ff"],
   className,
   style,
   stageRef,
@@ -89,16 +107,17 @@ export function Stage({
   const ordered = lineUp(players, meId, maxShown);
   const hiddenCount = players.length - ordered.length;
   const size = sizeFor(ordered.length);
-  // 160/100 is the dancer's aspect ratio; ~120px is left for tags and popups.
+  // Dancers are twice as tall as wide; ~90px is left for tags and popups.
   const width = fit
-    ? `min(${size}px, calc((100cqh - 120px) * 0.625))`
+    ? `min(${size}px, calc((100cqh - 90px) * 0.46))`
     : `${size}px`;
+  const reflect = ordered.length <= 12;
 
   return (
     <div
       ref={stageRef}
       className={cn(
-        "dance-stage flex flex-col",
+        "club-stage flex flex-col",
         fit && "[container-type:size]",
         className
       )}
@@ -110,58 +129,38 @@ export function Stage({
         } as CSSProperties
       }
     >
-      <div className="dance-spot a" />
-      <div className="dance-spot b" />
-      <div className="dance-spot c" />
-      <div className="disco-ball" />
-      {SPARKLES.map(([x, y], i) => (
-        <span
-          key={i}
-          className="stage-sparkle"
-          style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.4}s` }}
-        />
-      ))}
-      <div className="dance-floor" />
-      <div className="dance-floor-glow" />
+      <StageBackdrop beatSec={beatSec} />
 
       {children}
 
       {hiddenCount > 0 && (
-        <div className="absolute right-3 top-3 z-10 rounded-full bg-black/40 px-3 py-1 text-xs font-bold text-white">
-          +{hiddenCount} người đang nhảy
+        <div className="glass absolute right-3 top-6 z-10 rounded-full px-3 py-1 text-xs font-semibold">
+          +{hiddenCount} vũ công khác
         </div>
       )}
 
-      <div className="mt-auto flex flex-wrap items-end justify-center gap-x-1 gap-y-3 px-2 pb-3 pt-14 sm:gap-x-3">
+      <div className="mt-auto flex flex-wrap items-end justify-center gap-x-2 gap-y-6 px-3 pb-[5%] pt-12 sm:gap-x-5">
         {ordered.map((player) => {
           const judge = judges[player.id];
           const isMe = player.id === meId;
-          const move: MoveName = judge
-            ? pickMove(player.id, judge.round, judge.rating, judge.combo)
-            : "idle";
           return (
             <div
               key={player.id}
               className="relative flex flex-col items-center"
               style={{ width }}
             >
-              {isMe && (
-                <div className="me-arrow absolute -top-6 z-10 rounded-full bg-yellow-300 px-2 text-[11px] font-black text-purple-900 shadow">
-                  BẠN ▼
-                </div>
-              )}
               {judge && (
                 <div
                   key={judge.id}
                   className={cn(
                     "judge-pop",
                     `pop-${judge.rating}`,
-                    size < 90 ? "text-sm" : "text-xl"
+                    size < 90 ? "text-lg" : "text-3xl"
                   )}
                 >
                   {RATING_LABEL[judge.rating]}
                   {judge.combo >= 2 && judge.rating !== "miss" && (
-                    <span className="ml-1 text-xs not-italic text-yellow-200">
+                    <span className="ml-1 text-[0.6em] text-white">
                       x{judge.combo}
                     </span>
                   )}
@@ -170,26 +169,48 @@ export function Stage({
               <Dancer
                 avatar={player.avatar}
                 beatSec={beatSec}
-                phaseSec={phaseSec}
-                move={move}
-                moveKey={judge ? `${judge.round}-${judge.id}` : "idle"}
+                clock={clock}
+                grooveStyle={hashString(player.id) % GROOVE_STYLES}
+                action={
+                  judge
+                    ? {
+                        move: pickMove(
+                          player.id,
+                          judge.round,
+                          judge.rating,
+                          judge.combo
+                        ),
+                        key: judge.id,
+                      }
+                    : null
+                }
                 expression={judge ? EXPRESSION_BY_RATING[judge.rating] : "joy"}
+                reflect={reflect}
                 className="w-full"
               />
               <div
                 className={cn(
-                  "mt-0.5 flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px] font-bold shadow sm:text-xs",
+                  "relative z-[2] mt-1 flex max-w-[150%] items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold backdrop-blur sm:text-[11px]",
                   isMe
-                    ? "bg-yellow-300 text-purple-900"
-                    : "bg-white/90 text-purple-900"
+                    ? "bg-[var(--neon-pink)] text-white shadow-[0_0_14px_rgba(255,45,149,0.7)]"
+                    : "border border-white/15 bg-black/50 text-white/85"
                 )}
               >
-                {hostId === player.id && <span title="Chủ phòng">👑</span>}
-                <span className="truncate">{player.name}</span>
+                {hostId === player.id && (
+                  <span className="text-[9px] text-yellow-300">★</span>
+                )}
+                {player.isBot && (
+                  <span className="rounded bg-white/15 px-1 text-[8px] tracking-wider">
+                    BOT
+                  </span>
+                )}
+                <span className="max-w-[90px] truncate">
+                  {isMe ? `${player.name} (bạn)` : player.name}
+                </span>
                 {onKick && player.id !== meId && (
                   <button
                     type="button"
-                    className="ml-0.5 rounded-full px-1 text-rose-500 hover:bg-rose-100"
+                    className="ml-0.5 rounded-full px-1 text-white/60 hover:bg-white/20 hover:text-white"
                     title="Mời ra khỏi phòng"
                     onClick={() => onKick(player.id)}
                   >
@@ -198,7 +219,7 @@ export function Stage({
                 )}
               </div>
               {showScores && (
-                <div className="mt-0.5 text-[11px] font-black tabular-nums text-yellow-200 drop-shadow">
+                <div className="font-display relative z-[2] text-sm leading-tight text-white/90 drop-shadow">
                   {player.score.toLocaleString("vi-VN")}
                 </div>
               )}
@@ -214,38 +235,50 @@ export function Leaderboard({
   players,
   meId,
   className,
-  compact = false,
 }: {
   players: PlayerPublic[];
   meId: string | null;
   className?: string;
-  compact?: boolean;
 }) {
   const ranked = [...players].sort((a, b) => b.score - a.score);
-  const list = compact ? ranked.slice(0, 5) : ranked;
   return (
-    <ol className={cn("space-y-1", className)}>
-      {list.map((p, i) => (
+    <ol className={cn("space-y-1.5", className)}>
+      {ranked.map((p, i) => (
         <li
           key={p.id}
           className={cn(
-            "flex items-center gap-2 rounded-xl px-2 py-1 text-sm",
+            "flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm",
             p.id === meId
-              ? "bg-yellow-300 text-purple-900"
-              : "bg-white/10 text-white"
+              ? "bg-[rgba(255,45,149,0.18)] ring-1 ring-[#ff2d95]"
+              : "bg-white/[0.04]"
           )}
         >
-          <span className="w-5 text-center font-black">
-            {i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}
+          <span
+            className={cn(
+              "font-display w-6 text-center text-lg",
+              i < 3 ? "text-gradient" : "text-white/50"
+            )}
+          >
+            {i + 1}
           </span>
-          <DancerHead avatar={p.avatar} className="h-7 w-7 shrink-0" />
-          <span className="min-w-0 flex-1 truncate font-bold">{p.name}</span>
+          <DancerHead
+            avatar={p.avatar}
+            className="h-8 w-8 shrink-0 rounded-full bg-white/5"
+          />
+          <span className="min-w-0 flex-1 truncate font-semibold">
+            {p.name}
+          </span>
+          {p.isBot && (
+            <span className="rounded bg-white/10 px-1 text-[9px] tracking-wider text-white/60">
+              BOT
+            </span>
+          )}
           {p.combo >= 3 && (
-            <span className="rounded bg-pink-500 px-1 text-[10px] font-black text-white">
+            <span className="rounded bg-[var(--neon-lime)] px-1 text-[10px] font-black text-black">
               x{p.combo}
             </span>
           )}
-          <span className="font-black tabular-nums">
+          <span className="font-display text-lg tabular-nums">
             {p.score.toLocaleString("vi-VN")}
           </span>
         </li>

@@ -14,12 +14,17 @@ export const RATINGS: readonly Rating[] = [
   "miss",
 ];
 
+/** Indices into the wardrobe lists in lib/dance/avatar.ts. */
 export type Avatar = {
   skin: number;
-  hairStyle: number;
+  hair: number;
   hairColor: number;
-  outfit: number;
-  pants: number;
+  top: number;
+  topColor: number;
+  bottom: number;
+  bottomColor: number;
+  shoes: number;
+  shoeColor: number;
   accessory: number;
 };
 

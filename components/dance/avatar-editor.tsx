@@ -1,160 +1,146 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
+import { useState } from "react";
+
+import { Shuffle } from "lucide-react";
 
 import {
   ACCESSORIES,
-  AVATAR_LIMITS,
+  BOTTOMS,
+  FASHION_COLORS,
   HAIR_COLORS,
   HAIR_STYLES,
-  OUTFIT_COLORS,
-  PANTS_COLORS,
+  SHOES,
   SKIN_TONES,
+  TOPS,
   randomAvatar,
 } from "@/lib/dance/avatar";
 import type { Avatar } from "@/lib/dance/types";
 import { cn } from "@/lib/utils";
 
-import { Dancer } from "./dancer";
+type Tab = {
+  id: string;
+  label: string;
+  style?: { key: keyof Avatar; options: string[] };
+  color?: { key: keyof Avatar; colors: string[] };
+};
 
-type Props = {
+const TABS: Tab[] = [
+  {
+    id: "hair",
+    label: "Tóc",
+    style: { key: "hair", options: HAIR_STYLES },
+    color: { key: "hairColor", colors: HAIR_COLORS },
+  },
+  {
+    id: "top",
+    label: "Áo",
+    style: { key: "top", options: TOPS },
+    color: { key: "topColor", colors: FASHION_COLORS },
+  },
+  {
+    id: "bottom",
+    label: "Quần / váy",
+    style: { key: "bottom", options: BOTTOMS },
+    color: { key: "bottomColor", colors: FASHION_COLORS },
+  },
+  {
+    id: "shoes",
+    label: "Giày",
+    style: { key: "shoes", options: SHOES },
+    color: { key: "shoeColor", colors: FASHION_COLORS },
+  },
+  {
+    id: "acc",
+    label: "Phụ kiện",
+    style: { key: "accessory", options: ACCESSORIES },
+  },
+  { id: "skin", label: "Màu da", color: { key: "skin", colors: SKIN_TONES } },
+];
+
+/** Wardrobe controls; the preview is rendered by the parent. */
+export function AvatarEditor({
+  avatar,
+  onChange,
+  className,
+}: {
   avatar: Avatar;
   onChange: (avatar: Avatar) => void;
   className?: string;
-};
-
-function Swatches({
-  colors,
-  value,
-  onPick,
-  label,
-}: {
-  colors: string[];
-  value: number;
-  onPick: (index: number) => void;
-  label: string;
 }) {
+  const [tabId, setTabId] = useState(TABS[0].id);
+  const tab = TABS.find((t) => t.id === tabId) ?? TABS[0];
+  const set = (key: keyof Avatar, value: number) =>
+    onChange({ ...avatar, [key]: value });
+
   return (
-    <div>
-      <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {colors.map((color, i) => (
+    <div className={cn("flex flex-col gap-4", className)}>
+      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+        {TABS.map((t) => (
           <button
-            key={color}
+            key={t.id}
             type="button"
-            aria-label={`${label} ${i + 1}`}
-            onClick={() => onPick(i)}
+            onClick={() => setTabId(t.id)}
             className={cn(
-              "h-7 w-7 rounded-full border-2 border-white shadow ring-2 transition-transform hover:scale-110",
-              value === i ? "ring-purple-500" : "ring-slate-200"
+              "shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors",
+              t.id === tab.id
+                ? "bg-white text-black"
+                : "text-white/55 hover:text-white"
             )}
-            style={{ backgroundColor: color }}
-          />
+          >
+            {t.label}
+          </button>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function Cycler({
-  label,
-  options,
-  value,
-  onPick,
-}: {
-  label: string;
-  options: string[];
-  value: number;
-  onPick: (index: number) => void;
-}) {
-  const step = (delta: number) =>
-    onPick((value + delta + options.length) % options.length);
-  return (
-    <div>
-      <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          className="rounded-lg border-2 border-b-4 border-slate-200 p-1 hover:bg-slate-100"
-          aria-label={`${label} trước`}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="min-w-0 flex-1 truncate text-center text-sm font-bold text-slate-700">
-          {options[value]}
-        </span>
-        <button
-          type="button"
-          onClick={() => step(1)}
-          className="rounded-lg border-2 border-b-4 border-slate-200 p-1 hover:bg-slate-100"
-          aria-label={`${label} sau`}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function AvatarEditor({ avatar, onChange, className }: Props) {
-  const set = (key: keyof Avatar) => (value: number) =>
-    onChange({ ...avatar, [key]: Math.min(value, AVATAR_LIMITS[key] - 1) });
-
-  return (
-    <div className={cn("flex flex-col gap-4 sm:flex-row", className)}>
-      <div className="relative mx-auto flex w-40 shrink-0 flex-col items-center justify-end rounded-3xl bg-gradient-to-b from-purple-500 to-fuchsia-500 px-4 pb-3 pt-6">
-        <Dancer avatar={avatar} beatSec={0.6} className="w-28" />
         <button
           type="button"
           onClick={() => onChange(randomAvatar())}
-          className="mt-2 flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-purple-700 shadow hover:bg-white"
+          className="ml-auto flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--neon-cyan)] hover:bg-white/5"
         >
-          <Shuffle className="h-3.5 w-3.5" /> Ngẫu nhiên
+          <Shuffle className="h-3.5 w-3.5" /> Mix
         </button>
       </div>
-      <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-        <Cycler
-          label="Kiểu tóc"
-          options={HAIR_STYLES}
-          value={avatar.hairStyle}
-          onPick={set("hairStyle")}
-        />
-        <Cycler
-          label="Phụ kiện"
-          options={ACCESSORIES}
-          value={avatar.accessory}
-          onPick={set("accessory")}
-        />
-        <Swatches
-          label="Màu tóc"
-          colors={HAIR_COLORS}
-          value={avatar.hairColor}
-          onPick={set("hairColor")}
-        />
-        <Swatches
-          label="Màu da"
-          colors={SKIN_TONES}
-          value={avatar.skin}
-          onPick={set("skin")}
-        />
-        <Swatches
-          label="Áo"
-          colors={OUTFIT_COLORS}
-          value={avatar.outfit}
-          onPick={set("outfit")}
-        />
-        <Swatches
-          label="Quần"
-          colors={PANTS_COLORS}
-          value={avatar.pants}
-          onPick={set("pants")}
-        />
-      </div>
+
+      {tab.style && (
+        <div>
+          <p className="label mb-2">Kiểu dáng</p>
+          <div className="flex flex-wrap gap-1.5">
+            {tab.style.options.map((name, i) => (
+              <button
+                key={name}
+                type="button"
+                className="chip"
+                data-on={avatar[tab.style!.key] === i}
+                onClick={() => set(tab.style!.key, i)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab.color && (
+        <div>
+          <p className="label mb-2">Màu</p>
+          <div className="flex flex-wrap gap-2">
+            {tab.color.colors.map((color, i) => (
+              <button
+                key={color}
+                type="button"
+                aria-label={`${tab.label} màu ${i + 1}`}
+                onClick={() => set(tab.color!.key, i)}
+                className={cn(
+                  "h-7 w-7 rounded-full ring-offset-2 ring-offset-[#0d0b14] transition-transform hover:scale-110",
+                  avatar[tab.color!.key] === i
+                    ? "ring-2 ring-white"
+                    : "ring-1 ring-white/15"
+                )}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
