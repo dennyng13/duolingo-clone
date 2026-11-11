@@ -4,6 +4,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  // Lingo Dance: students join a classroom room with just a nickname.
+  "/dance(.*)",
   "/api/webhooks/stripe",
 ]);
 

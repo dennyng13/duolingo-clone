@@ -207,6 +207,22 @@ Once the script completes, check your database to ensure that the challenges dat
 
 **NOTE:** Please make sure to keep your API keys and configuration values secure and do not expose them publicly.
 
+## :dancer: Lingo Dance (multiplayer typing rhythm game)
+
+A cartoon dance party for practising English vocabulary: type the English word, then press
+<kbd>Enter</kbd> on the beat to make your character dance. Play solo with bots, or with a
+whole class in a shared room.
+
+```bash
+bun run dev            # app on http://localhost:3000 -> open /dance
+bun run dance:server   # multiplayer WebSocket server on ws://localhost:3001
+```
+
+Practice mode works without the server. For classrooms, deployment and custom word lists see
+[docs/lingo-dance.md](docs/lingo-dance.md) (Vietnamese).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## :camera: Screenshots
 
 ![Modern UI/UX](/.github/images/img1.png "Modern UI/UX")
